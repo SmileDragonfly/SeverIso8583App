@@ -3,7 +3,7 @@
 //
 
 #pragma once
-
+#include "ServerThread.h"
 
 // CSeverIso8583AppDlg dialog
 class CSeverIso8583AppDlg : public CDialogEx
@@ -31,4 +31,12 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+public:
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	BOOL OnSocketAccept(SOCKET socket);
+	BOOL OnSocketClose(SOCKET socket);
+	BOOL ReceiveDataFromSocket();
+protected:
+	SOCKET m_socket;
+	CServerThread m_serverThread;
 };

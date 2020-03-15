@@ -7,6 +7,8 @@
 #include "SeverIso8583App.h"
 #include "SeverIso8583AppDlg.h"
 #include "afxdialogex.h"
+#include "CommonDefinitions.h"
+#include "CommonStructures.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -54,6 +56,7 @@ CSeverIso8583AppDlg::CSeverIso8583AppDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_SEVERISO8583APP_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_socket = 0;
 }
 
 void CSeverIso8583AppDlg::DoDataExchange(CDataExchange* pDX)
@@ -100,6 +103,7 @@ BOOL CSeverIso8583AppDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	m_serverThread.InitServerThread(1500, TPROTOCOL::TCP);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -153,3 +157,67 @@ HCURSOR CSeverIso8583AppDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+
+
+BOOL CSeverIso8583AppDlg::PreTranslateMessage(MSG* pMsg)
+{
+	if (pMsg->message == WM_SOCKET)
+	{
+		if (WSAGETSELECTERROR(pMsg->lParam))
+		{
+			AfxMessageBox(L"Socket failed with error %d", WSAGETSELECTERROR(pMsg->lParam));
+		}
+		else
+		{
+			switch (WSAGETSELECTEVENT(pMsg->lParam))
+			{
+			case FD_ACCEPT:
+				if (OnSocketAccept(pMsg->wParam))
+				{
+					ReceiveDataFromSocket();
+				}
+				break;
+			case FD_CLOSE:
+				OnSocketClose(pMsg->wParam);
+				break;
+			}
+		}
+	}
+
+	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+BOOL CSeverIso8583AppDlg::OnSocketAccept(SOCKET socket)
+{
+	BOOL bRet = FALSE;
+	m_socket = accept(socket, NULL, NULL);
+	if (m_socket == INVALID_SOCKET)
+	{
+		AfxMessageBox(L"accept failed with error: %ld\n", WSAGetLastError());
+	}
+	else
+	{
+		bRet = TRUE;
+	}
+	return bRet;
+}
+
+BOOL CSeverIso8583AppDlg::OnSocketClose(SOCKET socket)
+{
+	return 0;
+}
+
+BOOL CSeverIso8583AppDlg::ReceiveDataFromSocket()
+{
+	if (m_socket != INVALID_SOCKET)
+	{
+		CHAR recvbuf[DEFAULT_BUFLEN];
+		INT recvbuflen = DEFAULT_BUFLEN;
+		INT iRecv = recv(m_socket, recvbuf, recvbuflen, 0);
+		if (iRecv == 0)
+		{
+			AfxMessageBox(L"Socket was closed");
+		}
+	}
+	return TRUE;
+}
